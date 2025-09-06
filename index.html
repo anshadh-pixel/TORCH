@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#007bff">
+    <link rel="manifest" href="/manifest.json">
+    <title>Ultimate Flashlight Suite</title>
+    <style>
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        @keyframes buttonPulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 rgba(0,123,255,0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 20px rgba(0,123,255,0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 rgba(0,123,255,0); }
+        }
+        body {
+            margin: 0;
+            height: 100vh;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+            user-select: none;
+            transition: background-color 0.3s, color 0.3s;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+        body.light {
+            color: #333;
+        }
+        body.dark {
+            color: #f0f0f0;
+            background: linear-gradient(-45deg, #333, #444, #555, #666);
+            animation: none;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            box-sizing: border-box;
+            position: relative;
+        }
+        .tab-bar {
+            display: flex;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .tab-button {
+            flex: 1;
+            padding: 15px;
+            font-size: 18px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+            color: inherit;
+        }
+        .tab-button.active {
+            background-color: rgba(255, 255, 255, 0.4);
+            font-weight: bold;
+        }
+        .tab-content {
+            flex: 1;
+            width: 100%;
+            padding: 20px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            overflow-y: auto;
+        }
+        .tab-content.active {
+            display: flex;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: rgba(0,123,255,0.8);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            margin: 15px 0;
+            width: 100%;
+            max-width: 300px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, transform 0.1s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        button::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 80%);
+            transform: scale(0);
+            transition: transform 0.5s;
+        }
+        button:hover {
+            background-color: #0056b3;
+            animation: buttonPulse 1.5s infinite;
+        }
+        button:active::after {
+            transform: scale(1);
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        #status, #battery, #noteStatus, #puzzleStatus {
+            font-size: 24px;
+            margin: 20px 0;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #strobeSlider, #timerInput, #noteInput {
+            width: 100%;
+            max-width: 300px;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 12px;
+            border: none;
+            background: rgba(255,255,255,0.8);
+            color: #333;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #noteList {
+            width: 100%;
+            max-width: 300px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+            padding: 15px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .note-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .note-item button {
+            padding: 5px 15px;
+            font-size: 14px;
+            max-width: 100px;
+            border-radius: 8px;
+        }
+        #puzzleBoard {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            width: 90%;
+            max-width: 300px;
+            aspect-ratio: 1;
+            gap: 8px;
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .tile {
+            background: linear-gradient(135deg, #007bff, #00c6ff);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: transform 0.3s ease, background 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tile:hover {
+            transform: scale(1.05);
+        }
+        .tile.empty {
+            background: transparent;
+            box-shadow: none;
+            cursor: default;
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #f00;
+            animation: confettiFall 3s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes confettiFall {
+            0% { transform: translateY(-100%) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        .hidden {
+            display: none;
+        }
+        @media (max-width: 400px) {
+            button, #status, #battery, #noteStatus, #puzzleStatus {
+                font-size: 16px;
+                padding: 10px 20px;
+            }
+            .tab-button {
+                font-size: 14px;
+                padding: 10px;
+            }
+            #puzzleBoard {
+                width: 100%;
+                gap: 4px;
+            }
+            .tile {
+                font-size: 24px;
+            }
+        }
+        @media (orientation: landscape) and (max-height: 500px) {
+            .tab-content {
+                justify-content: center;
+            }
+            button {
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+<body class="light">
+    <div class="container">
+        <div class="tab-bar">
+            <button class="tab-button active" onclick="showTab('flashlight')">Flashlight</button>
+            <button class="tab-button" onclick="showTab('notes')">Notes</button>
+            <button class="tab-button" onclick="showTab('puzzle')">Puzzle</button>
+        </div>
+        <div id="flashlight" class="tab-content active">
+            <div id="status">Flash is OFF</div>
+            <button id="torchButton">Turn On Flash</button>
+            <button id="sosButton">SOS Mode</button>
+            <button id="strobeButton">Start Strobe</button>
+            <input type="range" id="strobeSlider" min="50" max="1000" value="200" class="hidden">
+            <button id="timerButton">Set Auto-Off Timer</button>
+            <input type="number" id="timerInput" placeholder="Seconds" class="hidden" min="1">
+            <button id="themeButton">Switch to Dark Mode</button>
+            <div id="battery">Battery: Checking...</div>
+        </div>
+        <div id="notes" class="tab-content">
+            <div id="noteStatus">Enter a note</div>
+            <input type="text" id="noteInput" placeholder="Write a note...">
+            <button id="saveNoteButton">Save Note</button>
+            <div id="noteList"></div>
+        </div>
+        <div id="puzzle" class="tab-content">
+            <div id="puzzleStatus">Slide tiles to order 1-8</div>
+            <button id="resetPuzzleButton">Reset Puzzle</button>
+            <div id="puzzleBoard"></div>
+        </div>
+    </div>
+    <script>
+        let stream = null;
+        let isFlashOn = false;
+        let strobeInterval = null;
+        let sosInterval = null;
+        let timerTimeout = null;
+        let isStrobeOn = false;
+        let isSosOn = false;
+        const statusElement = document.getElementById('status');
+        const torchButton = document.getElementById('torchButton');
+        const sosButton = document.getElementById('sosButton');
+        const strobeButton = document.getElementById('strobeButton');
+        const strobeSlider = document.getElementById('strobeSlider');
+        const timerButton = document.getElementById('timerButton');
+        const timerInput = document.getElementById('timerInput');
+        const themeButton = document.getElementById('themeButton');
+        const batteryElement = document.getElementById('battery');
+        const noteInput = document.getElementById('noteInput');
+        const saveNoteButton = document.getElementById('saveNoteButton');
+        const noteList = document.getElementById('noteList');
+        const noteStatus = document.getElementById('noteStatus');
+        const puzzleBoard = document.getElementById('puzzleBoard');
+        const puzzleStatus = document.getElementById('puzzleStatus');
+        const resetPuzzleButton = document.getElementById('resetPuzzleButton');
+        const container = document.querySelector('.container');
+
+        // Flashlight Functions (unchanged from previous)
+        async function initCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', torch: false }
+                });
+                const track = stream.getVideoTracks()[0];
+                const capabilities = track.getCapabilities();
+                if (!capabilities.torch) {
+                    statusElement.textContent = 'No flash available';
+                    disableFlashButtons();
+                    return false;
+                }
+                return true;
+            } catch (err) {
+                statusElement.textContent = 'Error: Camera access denied';
+                disableFlashButtons();
+                console.error('Camera error:', err);
+                return false;
+            }
+        }
+
+        async function setTorch(on) {
+            if (!stream) return;
+            const track = stream.getVideoTracks()[0];
+            try {
+                await track.applyConstraints({
+                    advanced: [{ torch: on }]
+                });
+                isFlashOn = on;
+                updateStatus();
+            } catch (err) {
+                statusElement.textContent = 'Error toggling flash';
+                console.error('Flash error:', err);
+            }
+        }
+
+        function updateStatus() {
+            statusElement.textContent = isFlashOn ? 'Flash is ON' : 'Flash is OFF';
+            torchButton.textContent = isFlashOn ? 'Turn Off Flash' : 'Turn On Flash';
+        }
+
+        function disableFlashButtons() {
+            torchButton.disabled = true;
+            sosButton.disabled = true;
+            strobeButton.disabled = true;
+            timerButton.disabled = true;
+        }
+
+        async function toggleTorch() {
+            stopStrobe();
+            stopSos();
+            clearTimer();
+            await setTorch(!isFlashOn);
+        }
+
+        function startSos() {
+            stopStrobe();
+            clearTimer();
+            if (isSosOn) {
+                stopSos();
+                return;
+            }
+            isSosOn = true;
+            sosButton.textContent = 'Stop SOS';
+            const sosPattern = [200, 200, 200, 500, 500, 500, 200, 200, 200];
+            let index = 0;
+            sosInterval = setInterval(async () => {
+                await setTorch(index % 2 === 0);
+                const duration = sosPattern[index];
+                index = (index + 1) % sosPattern.length;
+                if (index === 0) setTimeout(() => {}, 1000); // pause
+            }, duration);
+        }
+
+        function stopSos() {
+            if (sosInterval) clearInterval(sosInterval);
+            sosInterval = null;
+            isSosOn = false;
+            sosButton.textContent = 'SOS Mode';
+            setTorch(false);
+        }
+
+        function startStrobe() {
+            stopSos();
+            clearTimer();
+            if (isStrobeOn) {
+                stopStrobe();
+                return;
+            }
+            isStrobeOn = true;
+            strobeButton.textContent = 'Stop Strobe';
+            strobeSlider.classList.remove('hidden');
+            const speed = strobeSlider.value;
+            strobeInterval = setInterval(async () => {
+                await setTorch(!isFlashOn);
+            }, speed);
+        }
+
+        function stopStrobe() {
+            if (strobeInterval) clearInterval(strobeInterval);
+            strobeInterval = null;
+            isStrobeOn = false;
+            strobeButton.textContent = 'Start Strobe';
+            strobeSlider.classList.add('hidden');
+            setTorch(false);
+        }
+
+        function setTimer() {
+            const seconds = parseInt(timerInput.value);
+            if (isNaN(seconds) || seconds <= 0) {
+                alert('Enter a valid number of seconds');
+                return;
+            }
+            timerInput.classList.add('hidden');
+            clearTimer();
+            timerTimeout = setTimeout(async () => {
+                await setTorch(false);
+                stopStrobe();
+                stopSos();
+                statusElement.textContent = 'Timer ended';
+            }, seconds * 1000);
+            statusElement.textContent = `Timer set for ${seconds} seconds`;
+        }
+
+        function clearTimer() {
+            if (timerTimeout) clearTimeout(timerTimeout);
+            timerTimeout = null;
+        }
+
+        // Note Diary Functions (unchanged)
+        let notes = JSON.parse(localStorage.getItem('notes')) || [];
+
+        function saveNote() {
+            const noteText = noteInput.value.trim();
+            if (!noteText) {
+                noteStatus.textContent = 'Enter a note to save';
+                return;
+            }
+            const timestamp = new Date().toLocaleString();
+            notes.push({ text: noteText, timestamp });
+            localStorage.setItem('notes', JSON.stringify(notes));
+            noteInput.value = '';
+            noteStatus.textContent = 'Note saved';
+            renderNotes();
+        }
+
+        function deleteNote(index) {
+            notes.splice(index, 1);
+            localStorage.setItem('notes', JSON.stringify(notes));
+            renderNotes();
+        }
+
+        function renderNotes() {
+            noteList.innerHTML = '';
+            notes.forEach((note, index) => {
+                const noteDiv = document.createElement('div');
+                noteDiv.className = 'note-item';
+                noteDiv.innerHTML = `
+                    <span>${note.timestamp}: ${note.text}</span>
+                    <button onclick="deleteNote(${index})">Delete</button>
+                `;
+                noteList.appendChild(noteDiv);
+            });
+        }
+
+        // Puzzle Game Functions
+        let tiles = [1, 2, 3, 4, 5, 6, 7, 8, 0];
+        let emptyIndex = 8;
+
+        function renderPuzzle() {
+            puzzleBoard.innerHTML = '';
+            tiles.forEach((tile, index) => {
+                const tileDiv = document.createElement('div');
+                tileDiv.className = `tile ${tile === 0 ? 'empty' : ''}`;
+                tileDiv.textContent = tile || '';
+                if (tile !== 0) tileDiv.addEventListener('click', () => moveTile(index));
+                puzzleBoard.appendChild(tileDiv);
+            });
+            checkWin();
+        }
+
+        function shufflePuzzle() {
+            for (let i = tiles.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+            }
+            emptyIndex = tiles.indexOf(0);
+            // Ensure solvable (even inversions)
+            if (countInversions() % 2 !== 0) {
+                // Swap two tiles to make even
+                let a = 0, b = 1;
+                if (tiles[a] === 0 || tiles[b] === 0) { a = 1; b = 2; }
+                [tiles[a], tiles[b]] = [tiles[b], tiles[a]];
+            }
+            renderPuzzle();
+        }
+
+        function countInversions() {
+            let inv = 0;
+            for (let i = 0; i < 9; i++) {
+                if (tiles[i] === 0) continue;
+                for (let j = i + 1; j < 9; j++) {
+                    if (tiles[j] !== 0 && tiles[i] > tiles[j]) inv++;
+                }
+            }
+            return inv;
+        }
+
+        function getValidMoves() {
+            const moves = [];
+            const row = Math.floor(emptyIndex / 3);
+            const col = emptyIndex % 3;
+            if (row > 0) moves.push(emptyIndex - 3);
+            if (row < 2) moves.push(emptyIndex + 3);
+            if (col > 0) moves.push(emptyIndex - 1);
+            if (col < 2) moves.push(emptyIndex + 1);
+            return moves;
+        }
+
+        function moveTile(index) {
+            if (getValidMoves().includes(index)) {
+                [tiles[emptyIndex], tiles[index]] = [tiles[index], tiles[emptyIndex]];
+                emptyIndex = index;
+                renderPuzzle();
+            }
+        }
+
+        function checkWin() {
+            const winState = tiles.every((tile, i) => tile === (i + 1) % 9);
+            puzzleStatus.textContent = winState ? 'You Win!' : 'Slide tiles to order 1-8';
+            if (winState) launchConfetti();
+        }
+
+        function launchConfetti() {
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = `${Math.random() * 100}%`;
+                confetti.style.animationDelay = `${Math.random() * 2}s`;
+                confetti.style.background = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                container.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 5000);
+            }
+        }
+
+        // Theme and Battery (unchanged)
+        function toggleTheme() {
+            document.body.classList.toggle('light');
+            document.body.classList.toggle('dark');
+            themeButton.textContent = document.body.classList.contains('dark') ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        }
+
+        async function updateBattery() {
+            if ('getBattery' in navigator) {
+                const battery = await navigator.getBattery();
+                batteryElement.textContent = `Battery: ${Math.round(battery.level * 100)}% ${battery.charging ? '(Charging)' : ''}`;
+                battery.addEventListener('levelchange', updateBattery);
+                battery.addEventListener('chargingchange', updateBattery);
+            } else {
+                batteryElement.textContent = 'Battery info not available';
+            }
+        }
+
+        // Tab Navigation (unchanged)
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`.tab-button[onclick="showTab('${tabId}')"]`).classList.add('active');
+        }
+
+        // Event Listeners (unchanged, except for puzzle shuffle)
+        torchButton.addEventListener('click', async () => {
+            if (!stream) {
+                const hasFlash = await initCamera();
+                if (hasFlash) await toggleTorch();
+            } else {
+                await toggleTorch();
+            }
+        });
+
+        sosButton.addEventListener('click', async () => {
+            if (!stream) {
+                const hasFlash = await initCamera();
+                if (hasFlash) startSos();
+            } else {
+                startSos();
+            }
+        });
+
+        strobeButton.addEventListener('click', async () => {
+            if (!stream) {
+                const hasFlash = await initCamera();
+                if (hasFlash) startStrobe();
+            } else {
+                startStrobe();
+            }
+        });
+
+        strobeSlider.addEventListener('input', () => {
+            if (isStrobeOn) {
+                clearInterval(strobeInterval);
+                const speed = strobeSlider.value;
+                strobeInterval = setInterval(async () => {
+                    await setTorch(!isFlashOn);
+                }, speed);
+            }
+        });
+
+        timerButton.addEventListener('click', () => {
+            timerInput.classList.toggle('hidden');
+            if (!timerInput.classList.contains('hidden')) {
+                timerInput.focus();
+            } else {
+                setTimer();
+            }
+        });
+
+        timerInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') setTimer();
+        });
+
+        saveNoteButton.addEventListener('click', saveNote);
+        noteInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') saveNote();
+        });
+
+        resetPuzzleButton.addEventListener('click', shufflePuzzle);
+        themeButton.addEventListener('click', toggleTheme);
+
+        // Initialize
+        updateBattery();
+        renderNotes();
+        shufflePuzzle();
+
+        // Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.error('Service Worker error:', err));
+            });
+        }
+
+        // Clean Up
+        window.addEventListener('unload', () => {
+            if (stream) stream.getTracks().forEach(track => track.stop());
+            stopStrobe();
+            stopSos();
+            clearTimer();
+        });
+    </script>
+</body>
+</html>
